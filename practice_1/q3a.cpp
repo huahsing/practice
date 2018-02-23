@@ -1,5 +1,7 @@
 #include <bits/stdc++.h>
 
+using namespace std;
+
 struct Node {
   int key;
   Node *next;
@@ -13,7 +15,7 @@ private:
 public:
   List() { head = NULL; size = 0; }
   void insert(int key);
-  bool delete(int key);
+  bool remove(int key);
   
   // debug/test
   void print()
@@ -27,6 +29,7 @@ public:
       while(cur)
       {
         cout << " -> " << cur->key;
+        cur = cur->next;
       }
       cout << endl;
     }
@@ -100,14 +103,33 @@ bool List::remove(int key)
 int main()
 {
     List l;
-    l.insert(25);
-    l.insert(7);
-    l.insert(37);
-    l.insert(58);
-    l.insert(14);
-    l.insert(3);
-    l.insert(96);
     
+    cout << "inserting 25" << endl;
+    l.insert(25);
+    l.print();
+    
+    cout << "inserting 7" << endl;
+    l.insert(7);
+    l.print();
+    
+    cout << "inserting 37" << endl;
+    l.insert(37);
+    l.print();
+    
+    cout << "inserting 58" << endl;
+    l.insert(58);
+    l.print();
+    
+    cout << "inserting 14" << endl;
+    l.insert(14);
+    l.print();
+    
+    cout << "inserting 3" << endl;
+    l.insert(3);
+    l.print();
+    
+    cout << "inserting 96" << endl;
+    l.insert(96);
     l.print();
     
     cout << "removing 58" << endl;
@@ -115,7 +137,7 @@ int main()
     l.print();
     
     cout << "removing 96" << endl;
-    l.remove(58);
+    l.remove(96);
     l.print();
     
     cout << "inserting 46" << endl;
@@ -124,6 +146,10 @@ int main()
     
     cout << "removing 25" << endl;
     l.remove(25);
+    l.print();
+    
+    cout << "removing 3" << endl;
+    l.remove(3);
     l.print();
     
     return 0;
