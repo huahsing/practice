@@ -7,9 +7,15 @@ struct Node {
   Node *left;
   Node *right;
   Node *parent;
+  int height;
 };
 
-class BST {
+#define leftTooDeep(balance) (balance > 1)
+#define rightTooDeep(balance) (balance < -1)
+#define leftDeeper(balance) (balance == 1)
+#define rightDeeper(balance) (balance == -1)
+
+class AVL {
 private:
   Node *root;
   void _postOrderDestroy(Node *n);
@@ -20,10 +26,19 @@ private:
   Node* _successor(Node* n);
   Node* _predecessor(Node* n);
   void _print(Node *n, int depth);
+  Node* rotateRight(Node *n);
+  Node* rotateLeft(Node *n);
+  void updateNewHeight(Node *n);
+  int getBalance(Node *n)
+  {
+    int leftHeight = n->left ? n->left->height : -1;
+    int rightHeight = n->right ? n->right->height : -1;
+    return leftHeight - rightHeight;
+  }
   
 public:
-  BST() { root = NULL; }
-  virtual ~BST();
+  AVL() { root = NULL; }
+  virtual ~AVL();
   void insert(int key);
   bool remove(int key);
   int minKey();
@@ -31,12 +46,12 @@ public:
   void print();
 };
 
-BST::~BST()
+AVL::~AVL()
 {
   _postOrderDestroy(root);
 } 
 
-void BST::_postOrderDestroy(Node *n)
+void AVL::_postOrderDestroy(Node *n)
 {
   if(n == NULL) return;
   _postOrderDestroy(n->left);
@@ -44,18 +59,19 @@ void BST::_postOrderDestroy(Node *n)
   delete n;
 }
 
-bool BST::isLeaf(Node& node)
+bool AVL::isLeaf(Node& node)
 {
   return (!node.left && !node.right);
 }
 
-bool BST::hasOneChild(Node& node)
+bool AVL::hasOneChild(Node& node)
 {
   return (node.left && !node.right || !node.left && node.right);
 }
 
-Node* BST::_insert(Node *n, int key)
+Node* AVL::_insert(Node *n, int key)
 {
+  Node *retNode;
   if(n == NULL)
   {
     n = new Node;
@@ -63,6 +79,8 @@ Node* BST::_insert(Node *n, int key)
     n->right = NULL;
     n->parent = NULL;
     n->key = key;
+    n->height = 0;
+    retNode = n;
   }
   else
   {
@@ -78,10 +96,34 @@ Node* BST::_insert(Node *n, int key)
     }
   }
   
-  return n;
+  // update height
+  updateNewHeight(n);
+  
+  if(leftTooDeep(getBalance(n)) && leftDeeper(getBalance(n->left)))
+    retNode = rotateRight(n);
+  else if(rightTooDeep(getBalance(n)) && rightDeeper(getBalance(n->right)))
+    retNode = rotateLeft(n);
+  else if(leftTooDeep(getBalance(n)) && rightDeeper(getBalance(n->left)))
+  {
+    n->left = rotateLeft(n->left);
+    n->left->parent = n;
+    updateNewHeight(n->left);
+    retNode = rotateRight(n);
+  }
+  else if(rightTooDeep(getBalance(n)) && leftDeeper(getBalance(n->right)))
+  {
+    n->right = rotateRight(n->right);
+    n->right->parent = n;
+    updateNewHeight(n->right);
+    retNode = rotateLeft(n);
+  }
+  else // balanced, return original node
+    retNode = n;
+  
+  return retNode;
 }
 
-Node* BST::_remove(Node *n, int key, bool &removed)
+Node* AVL::_remove(Node *n, int key, bool &removed)
 {
   Node *retNode;
   
@@ -137,10 +179,35 @@ Node* BST::_remove(Node *n, int key, bool &removed)
     }
   }
   
+  // update height
+  if(retNode)
+  {
+    updateNewHeight(retNode);
+  
+    if(leftTooDeep(getBalance(retNode)) && leftDeeper(getBalance(retNode->left)))
+      retNode = rotateRight(retNode);
+    else if(rightTooDeep(getBalance(retNode)) && rightDeeper(getBalance(retNode->right)))
+      retNode = rotateLeft(retNode);
+    else if(leftTooDeep(getBalance(retNode)) && rightDeeper(getBalance(retNode->left)))
+    {
+      retNode->left = rotateLeft(retNode->left);
+      retNode->left->parent = retNode;
+      updateNewHeight(retNode->left);
+      retNode = rotateRight(retNode);
+    }
+    else if(rightTooDeep(getBalance(retNode)) && leftDeeper(getBalance(retNode->right)))
+    {
+      retNode->right = rotateRight(retNode->right);
+      retNode->right->parent = retNode;
+      updateNewHeight(retNode->right);
+      retNode = rotateLeft(retNode);
+    }
+  }
+  
   return retNode;
 }
 
-Node* BST::_successor(Node* n)
+Node* AVL::_successor(Node* n)
 {
   Node *successor = NULL;
   if(n->right)
@@ -162,7 +229,7 @@ Node* BST::_successor(Node* n)
   return successor;
 }
 
-Node* BST::_predecessor(Node* n)
+Node* AVL::_predecessor(Node* n)
 {
   Node *predecessor = NULL;
   if(n->left)
@@ -184,7 +251,7 @@ Node* BST::_predecessor(Node* n)
   return predecessor;
 }
 
-void BST::_print(Node *n, int depth)
+void AVL::_print(Node *n, int depth)
 {
   cout << setw(4);
   if(!n) { cout << "\\0" << endl; return; }
@@ -194,23 +261,61 @@ void BST::_print(Node *n, int depth)
   _print(n->left, depth+1);
 }
 
+Node* AVL::rotateRight(Node *n)
+{
+  Node *origNleftChild = n->left;
+  n->left = origNleftChild->right;
+  if(n->left) n->left->parent = n;
+  updateNewHeight(n);
+  origNleftChild->right = n;
+  n->parent = origNleftChild;
+  return origNleftChild;
+}
+
+Node* AVL::rotateLeft(Node *n)
+{
+  Node *origNrightChild = n->right;
+  n->right = origNrightChild->left;
+  if(n->right) n->right->parent = n;
+  updateNewHeight(n);
+  origNrightChild->left = n;
+  n->parent = origNrightChild;
+  return origNrightChild;
+}
+  
+void AVL::updateNewHeight(Node *n)
+{
+  int height;
+  if(!n->left && !n->right) n->height = 0;
+  else if (n->left && !n->right) n->height = 1 + n->left->height;
+  else if(!n->left && n->right) n->height = 1 + n->right->height;
+  else
+    n->height = n->right->height > n->left->height ? (1+n->right->height) : (1+n->left->height);
+}
+
 //////////////////
 // PUBLIC METHODS
 //////////////////
-void BST::insert(int key)
+void AVL::insert(int key)
 {
   root = _insert(root, key);
+  root->parent = NULL; // this is important as if there's balancing, the parent need to be updated after _insert returns;
+  updateNewHeight(root);
 }
 
-bool BST::remove(int key)
+bool AVL::remove(int key)
 {
   bool removed;
   root = _remove(root, key, removed);
-  root->parent = NULL;
+  if(root)
+  {
+    root->parent = NULL;
+    updateNewHeight(root);
+  }
   return removed;
 }
 
-int BST::minKey()
+int AVL::minKey()
 {
   if(root == NULL) return -1;
   Node *n = root;
@@ -218,7 +323,7 @@ int BST::minKey()
   return n->key;
 }
 
-int BST::maxKey()
+int AVL::maxKey()
 {
   if(root == NULL) return -1;
   Node *n = root;
@@ -226,7 +331,7 @@ int BST::maxKey()
   return n->key;
 }
 
-void BST::print()
+void AVL::print()
 {
   // using custom traversal to always visit right subtree first
   _print(root, 0);
@@ -238,50 +343,42 @@ void BST::print()
 //////////////////
 int main()
 {
-  BST bst;
+  AVL avl;
   int insvals[11] = { 25, 7, 37, 58, 14, 3, 96, 43, 2, 75, 84 };
   for(int i = 0; i < 11; i++)
   {
     cout << "inserting " << insvals[i] << endl;
-    bst.insert(insvals[i]);
-    bst.print();
+    avl.insert(insvals[i]);
+    avl.print();
   }
-  
+
   cout << "deleting 58" << endl;
-  bst.remove(58);
-  bst.print();
-  
+  avl.remove(58);
+  avl.print();
+
   cout << "deleting 14" << endl;
-  bst.remove(14);
-  bst.print();
-  
+  avl.remove(14);
+  avl.print();
+ 
   cout << "deleting 2" << endl;
-  bst.remove(2);
-  bst.print();
-  
+  avl.remove(2);
+  avl.print();
+   
   cout << "inserting 12" << endl;
-  bst.insert(12);
-  bst.print();
-  
+  avl.insert(12);
+  avl.print();
+ 
   cout << "inserting 23" << endl;
-  bst.insert(23);
-  bst.print();
-  
-  cout << "deleting 12" << endl;
-  bst.remove(12);
-  bst.print();
-  
-  cout << "deleting 7" << endl;
-  bst.remove(7);
-  bst.print();
+  avl.insert(23);
+  avl.print();
   
   cout << "deleting 37" << endl;
-  bst.remove(37);
-  bst.print();
+  avl.remove(37);
+  avl.print();
   
-  cout << "deleting 25" << endl;
-  bst.remove(25);
-  bst.print();
-  
+  cout << "deleting 43" << endl;
+  avl.remove(43);
+  avl.print();
+
   return 0;
 }
